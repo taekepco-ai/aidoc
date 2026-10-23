@@ -188,7 +188,7 @@ def save_document(org_id: str, org_name: str, doc_type: str,
     import hashlib
     import requests
 
-    digest = hashlib.sha1(body.encode("utf-8")).hexdigest()[:10]
+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:10]
     # 같은 내용(해시)이 이미 있으면 중복이므로 건너뛴다
     try:
         if any(digest in name for name in _dir_names(org_id, doc_type)):
@@ -249,7 +249,7 @@ def save_documents_batch(org_id: str, org_name: str, doc_type: str,
         if len(body) < MIN_SAVE_CHARS or looks_like_ai_output(body):
             continue
         body = body[:MAX_SAVE_CHARS]
-        digest = hashlib.sha1(body.encode("utf-8")).hexdigest()[:10]
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:10]
         # 이미 보관된 내용이거나 이번 묶음 안에서 겹치면 건너뛴다
         if digest in seen or any(digest in name for name in existing):
             continue

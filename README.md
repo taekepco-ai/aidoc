@@ -19,7 +19,6 @@ core/            웹·데스크톱 공용 (여기만 고치면 양쪽에 반영�
 api/index.py     웹 백엔드 (FastAPI, Vercel Python 런타임)
 public/          웹 프론트엔드 (정적)
 desktop/gen.py   데스크톱 앱 (Tkinter)
-training/        로컬 SLM 파인튜닝 (현재 미사용, 참고용 보존)
 ```
 
 문서 유형은 `공문-외부` / `공문-내부` / `보고서` 3종이며, 각각 작성용·검토용 프롬프트를 가진다.

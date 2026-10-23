@@ -25,7 +25,7 @@
 /%programdata%/
 
 # 학습 산출물 (체크포인트 등)
-/training/output/
+/training/
 
 # spaces/ 전체를 메인 리포에서 제외 (별도 HF Space git으로 관리)
 spaces/
@@ -50,5 +50,4 @@ Thumbs.db
 # 공개 저장소: 기관 문서·기관 목록·개선요청·학습 데이터는 올리지 않는다
 /datas/
 /feedback/
-/training/train_data.json
 /.claude/

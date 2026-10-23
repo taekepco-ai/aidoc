@@ -1,14 +1,16 @@
 # 웹 백엔드 (api/index.py) — Vercel Python 런타임 + 로컬 실행 공용
-fastapi==0.115.6
-pydantic==2.10.4
-python-multipart==0.0.20
-requests==2.32.3
+# 버전은 알려진 취약점이 없는 최신으로 고정한다(2026-10 기준, pip-audit 로 확인).
+fastapi==0.161.1
+pydantic==2.14.1
+python-multipart==0.0.32
+requests==2.34.2
 
 # 문서 텍스트 추출
-pypdf==5.1.0
-python-docx==1.1.2
+pypdf==6.21.2
+python-docx==1.2.0
 olefile==0.47              # 구형 .hwp(OLE 복합문서) 본문 파싱
-# .hwpx / .txt 는 표준 라이브러리만으로 처리
+defusedxml==0.7.1          # .hwpx/.xlsx XML 해석 — XXE·XML 폭탄 차단
+# .txt / .csv / .eml 은 표준 라이브러리만으로 처리
 
 # 로컬 개발 서버 (Vercel 배포 시에는 사용되지 않음)
-uvicorn[standard]==0.34.0
+uvicorn[standard]==0.54.0

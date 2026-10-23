@@ -100,7 +100,7 @@ def _extract_hwpx(src) -> str:
     로컬 태그명(p / t)으로 매칭한다. 표는 행/열 구조를 살려 추출한다.
     """
     import zipfile
-    import xml.etree.ElementTree as ET
+    import defusedxml.ElementTree as ET   # XXE·XML 폭탄 차단 (표준 xml 은 업로드 파일에 취약)
 
     lines = []
     with zipfile.ZipFile(src, "r") as zf:
@@ -294,7 +294,7 @@ def _extract_xlsx(src) -> str:
     (일정 파악이 인수인계의 핵심이라 숫자로 두면 쓸모가 없다).
     """
     import zipfile
-    import xml.etree.ElementTree as ET
+    import defusedxml.ElementTree as ET   # XXE·XML 폭탄 차단 (표준 xml 은 업로드 파일에 취약)
     from datetime import datetime, timedelta
 
     with zipfile.ZipFile(src, "r") as zf:
