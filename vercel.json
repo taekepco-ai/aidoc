@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 300,
+      "includeFiles": "core/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" }
+  ],
+  "ignoreCommand": "echo \"$VERCEL_GIT_COMMIT_MESSAGE\" | grep -q '\\[skip deploy\\]' && exit 0 || exit 1"
+}

@@ -1,0 +1,14 @@
+# 웹 백엔드 (api/index.py) — Vercel Python 런타임 + 로컬 실행 공용
+fastapi==0.115.6
+pydantic==2.10.4
+python-multipart==0.0.20
+requests==2.32.3
+
+# 문서 텍스트 추출
+pypdf==5.1.0
+python-docx==1.1.2
+olefile==0.47              # 구형 .hwp(OLE 복합문서) 본문 파싱
+# .hwpx / .txt 는 표준 라이브러리만으로 처리
+
+# 로컬 개발 서버 (Vercel 배포 시에는 사용되지 않음)
+uvicorn[standard]==0.34.0

@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>문서 검토·작성 시스템</title>
+<style>
+  :root {
+    --blue: #1a4f8a;
+    --blue-dark: #143c69;
+    --line: #d8dee6;
+    --bg: #f4f6f9;
+    --muted: #667085;
+    --danger: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: #1c2430;
+    font-family: "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  header {
+    background: var(--blue); color: #fff; padding: 14px 24px; position: relative;
+  }
+  .feedback-btn {
+    position: absolute; top: 14px; right: 24px;
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.35);
+    color: #fff; border-radius: 3px; padding: 5px 12px; font-size: 12px;
+    cursor: pointer; font-family: inherit;
+  }
+  .feedback-btn:hover { background: rgba(255,255,255,.28); }
+  header h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+  header span { font-size: 12px; opacity: .75; }
+  main { max-width: 1080px; margin: 0 auto; padding: 20px 24px 40px; }
+
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  .card > h2 {
+    margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--muted);
+    letter-spacing: .3px;
+  }
+
+  .radios { display: flex; gap: 20px; flex-wrap: wrap; }
+  .radios label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+  .tabs button {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    padding: 9px 20px; font-size: 14px; cursor: pointer; color: var(--muted);
+    font-family: inherit;
+  }
+  .tabs button.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+  textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 4px; padding: 10px;
+    font-family: inherit; font-size: 14px; line-height: 1.7; resize: vertical;
+  }
+  textarea:focus { outline: 2px solid rgba(26,79,138,.35); outline-offset: -1px; }
+
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row.between { justify-content: space-between; }
+
+  button.btn {
+    border: 1px solid var(--line); background: #fff; border-radius: 4px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  button.btn:hover:not(:disabled) { background: #f0f3f7; }
+  button.btn.primary {
+    background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600;
+  }
+  button.btn.primary:hover:not(:disabled) { background: var(--blue-dark); }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .status { font-size: 12.5px; color: var(--muted); }
+  .status.error { color: var(--danger); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  #output {
+    white-space: pre-wrap; word-break: break-word; min-height: 320px;
+    border: 1px solid var(--line); border-radius: 4px; padding: 14px;
+    background: #fff; font-family: "D2Coding", "Consolas", "맑은 고딕", monospace;
+    font-size: 13.5px; line-height: 1.75;
+  }
+  #output:empty::before { content: "결과가 여기에 표시됩니다."; color: #aab2bd; }
+
+  /* 한글 저장본 미리보기 — core/hwpx_style.py 의 글꼴·제목 상자·표 모양을 흉내 낸다 */
+  .doc-view, #output.doc-view {
+    white-space: normal; font-family: "휴먼명조", "HY신명조", "바탕", serif;
+    font-size: 15px; line-height: 1.8; color: #111;
+  }
+  #ho-preview { border: 1px solid var(--line); border-radius: 4px; padding: 18px 22px; min-height: 320px; }
+  .doc-view .d-line, .doc-view .d-right, .doc-view .d-head { white-space: pre-wrap; word-break: break-word; }
+  .doc-view .d-title {
+    font-family: "HY헤드라인M", "맑은 고딕", sans-serif; font-size: 22px; text-align: center;
+    background: #e7e7e7; border: 1px solid #222; box-shadow: 3px 3px 0 #222;
+    padding: 10px 14px; margin: 0 4px 6px 0;
+  }
+  .doc-view .d-right { text-align: right; }
+  .doc-view .d-head { font-family: "HY헤드라인M", "맑은 고딕", sans-serif; font-size: 17px; margin-top: 14px; }
+  .doc-view table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 6px 0 10px; font-size: 13px; line-height: 1.5; }
+  .doc-view th, .doc-view td { border: 1px solid #333; padding: 5px 10px; text-align: center; }
+  .doc-view th { background: #e7e7e7; font-weight: 700; }
+  .doc-view td.l { text-align: left; }
+  .hidden { display: none !important; }
+
+  /* ---------- 기관 ---------- */
+  .org-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 6px; font-size: 12.5px;
+  }
+  .org-bar strong { font-weight: 600; }
+  .org-bar button {
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.35);
+    color: #fff; border-radius: 3px; padding: 2px 9px; font-size: 12px;
+    cursor: pointer; font-family: inherit;
+  }
+  .org-bar button:hover { background: rgba(255,255,255,.28); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(20,28,38,.55);
+    display: flex; align-items: center; justify-content: center; z-index: 50;
+    padding: 20px;
+  }
+  .modal {
+    background: #fff; border-radius: 8px; width: 100%; max-width: 520px;
+    max-height: 88vh; overflow-y: auto; padding: 22px 24px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 16px; }
+  .modal p.sub { margin: 0 0 16px; font-size: 12.5px; color: var(--muted); }
+
+  .org-search {
+    width: 100%; border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px 10px; font-family: inherit; font-size: 13.5px; margin-bottom: 10px;
+  }
+  .org-search:focus { outline: 2px solid rgba(26,79,138,.35); outline-offset: -1px; }
+
+  .org-list {
+    display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;
+    max-height: 46vh; overflow-y: auto;
+  }
+  .org-empty {
+    font-size: 13px; color: var(--muted); text-align: center;
+    padding: 18px 0; margin-bottom: 14px;
+  }
+  .org-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 5px; cursor: pointer;
+  }
+  .org-item:hover { background: #f4f7fb; }
+  .org-item.selected { border-color: var(--blue); background: #eef4fb; }
+  .org-item .grow { flex: 1; min-width: 0; }
+  .org-item .nm { font-weight: 600; }
+  .org-item .meta {
+    font-size: 12px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .org-item .tag {
+    font-size: 11px; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 3px; padding: 1px 6px; flex-shrink: 0;
+  }
+  .org-item .act {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; padding: 2px 4px; font-family: inherit; flex-shrink: 0;
+  }
+  .org-item .act:hover { color: var(--blue); text-decoration: underline; }
+  .org-item .act.del:hover { color: var(--danger); }
+
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12.5px; margin-bottom: 3px; font-weight: 600; }
+  .field input {
+    width: 100%; border: 1px solid var(--line); border-radius: 4px;
+    padding: 7px 9px; font-family: inherit; font-size: 13.5px;
+  }
+  .field .desc { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+
+  .upload-card {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--line); border-radius: 5px;
+    padding: 14px 16px; background: #f7fafd;
+  }
+  .upload-card .uc-icon { font-size: 18px; }
+  .upload-card .uc-name {
+    flex: 1; min-width: 0; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .upload-card .uc-ok { font-size: 12.5px; color: #1f7a44; flex-shrink: 0; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .modal-error { color: var(--danger); font-size: 12.5px; margin-top: 10px; }
+
+  .choice-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+  .choice-list button {
+    width: 100%; text-align: left; padding: 13px 15px; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 5px; background: #fff;
+    cursor: pointer; font-family: inherit;
+  }
+  .choice-list button:hover { background: #eef4fb; border-color: var(--blue); }
+
+  .doctype-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  .doctype-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+
+  /* ---------- 인수인계 ---------- */
+  .drop-zone {
+    border: 1.5px dashed var(--line); border-radius: 6px; padding: 18px;
+    text-align: center; color: var(--muted); font-size: 13px;
+    background: #fafbfd; margin: 8px 0;
+  }
+  .drop-zone.over { border-color: var(--blue); background: #eef4fb; color: var(--blue); }
+  .ho-files {
+    border: 1px solid var(--line); border-radius: 5px;
+    max-height: 240px; overflow-y: auto;
+  }
+  .ho-file {
+    display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+    border-bottom: 1px solid #eef1f5; font-size: 13px;
+  }
+  .ho-file:last-child { border-bottom: none; }
+  .ho-file .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ho-file .st { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .ho-file .st.ok { color: #1f7a44; }
+  .ho-file .st.err { color: var(--danger); }
+  .ho-file button, .link-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; padding: 2px 4px; font-family: inherit; flex-shrink: 0;
+  }
+  .ho-file button:hover, .link-btn:hover { color: var(--blue); text-decoration: underline; }
+  .ho-note-label { display: block; margin-top: 14px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg button {
+    background: #fff; border: none; padding: 5px 12px; font-size: 12.5px;
+    cursor: pointer; font-family: inherit; color: var(--muted);
+  }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.active { background: var(--blue); color: #fff; font-weight: 600; }
+
+  #ho-output {
+    min-height: 460px; font-family: "D2Coding", "Consolas", "맑은 고딕", monospace;
+    font-size: 13.5px; line-height: 1.75;
+  }
+  #ho-output[readonly] { background: #fafbfc; }
+
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px;
+  }
+  .cal-month {
+    border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px 10px;
+    min-height: 96px; background: #fff;
+  }
+  .cal-month.wide { grid-column: 1 / -1; min-height: 0; }
+  .cal-month.now { border-color: var(--blue); box-shadow: inset 0 3px 0 var(--blue); }
+  .cal-month.empty { background: #fafbfc; }
+  .cal-month h3 { margin: 0 0 4px; font-size: 13px; display: flex; justify-content: space-between; }
+  .cal-month h3 small { font-weight: 400; color: var(--blue); font-size: 11.5px; }
+  .cal-month ul { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.55; }
+  .cal-month li { margin-bottom: 3px; }
+  .cal-month .none { color: #aab2bd; font-size: 12.5px; }
+  .cal-empty { color: var(--muted); padding: 30px 0; text-align: center; }
+
+  .src-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .src-chip {
+    border: 1px solid var(--line); border-radius: 12px; padding: 2px 10px;
+    font-size: 12px; background: #f7fafd; cursor: pointer; font-family: inherit;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .src-chip:hover { border-color: var(--blue); color: var(--blue); }
+  .src-chip.org { border-color: #b9cbe0; background: #eef4fb; color: var(--blue-dark); }
+  .src-chip.bad { border-color: #e6b0aa; color: var(--danger); background: #fdf3f2; cursor: help; }
+  .cal-month .src-chip { font-size: 11px; padding: 0 7px; margin: 2px 4px 0 0; }
+
+  .modal.wide { max-width: 820px; }
+  .src-cites { margin: 0 0 12px; padding-left: 20px; font-size: 13px; max-height: 22vh; overflow-y: auto; }
+  .src-text {
+    white-space: pre-wrap; word-break: break-word; border: 1px solid var(--line);
+    border-radius: 4px; padding: 10px 12px; max-height: 44vh; overflow-y: auto;
+    background: #fafbfc; font-family: "D2Coding", "Consolas", "맑은 고딕", monospace;
+    font-size: 12.5px; line-height: 1.65;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>문서 검토·작성 시스템</h1>
+  <span id="model-label">연결 확인 중...</span>
+  <div class="org-bar hidden" id="org-bar">
+    기관 <strong id="org-current">—</strong>
+    <button id="btn-org-change">변경</button>
+  </div>
+  <button id="btn-feedback" class="feedback-btn">개선요청</button>
+</header>
+
+<!-- 익명 개선요청 -->
+<div class="overlay hidden" id="feedback-overlay">
+  <div class="modal">
+    <h2>개선요청</h2>
+    <p class="sub">익명으로 전송됩니다. 개인정보는 적지 마세요.</p>
+    <textarea id="feedback-text" rows="6" style="width:100%;border:1px solid var(--line);border-radius:4px;padding:10px;font-family:inherit;font-size:13.5px;resize:vertical;" placeholder="불편한 점이나 바라는 기능을 자유롭게 적어 주세요."></textarea>
+    <div class="modal-error hidden" id="feedback-error"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-feedback-cancel">취소</button>
+      <button class="btn primary" id="btn-feedback-send">보내기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 기관 선택 / 관리 -->
+<div class="overlay hidden" id="org-overlay">
+  <div class="modal">
+    <div id="org-view-list">
+      <h2>기관 선택</h2>
+      <p class="sub">문서를 작성할 기관을 선택하세요.</p>
+      <input id="org-search" class="org-search" type="search" autocomplete="off"
+             placeholder="기관명 검색">
+      <div class="org-list" id="org-list"></div>
+      <div class="org-empty hidden" id="org-empty"></div>
+      <div class="modal-actions">
+        <button class="btn" id="btn-org-add">기관 추가</button>
+        <button class="btn primary" id="btn-org-close">확인</button>
+      </div>
+    </div>
+
+    <div id="org-view-form" class="hidden">
+      <h2 id="org-form-title">기관 추가</h2>
+
+      <div class="field">
+        <label for="f-name">기관명</label>
+        <input id="f-name" placeholder="예) 한국가스공사">
+      </div>
+
+      <div class="modal-error hidden" id="org-form-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="btn-org-cancel">취소</button>
+        <button class="btn primary" id="btn-org-save">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 검토 문서 유형 선택 -->
+<div class="overlay hidden" id="doctype-overlay">
+  <div class="modal">
+    <h2>문서 유형 선택</h2>
+    <p class="sub">검토할 문서의 유형을 선택하세요.</p>
+    <div class="choice-list" id="doctype-list"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-doctype-cancel">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 인수인계 출처 확인 -->
+<div class="overlay hidden" id="src-overlay">
+  <div class="modal wide">
+    <h2 id="src-title"></h2>
+    <p class="sub" id="src-sub"></p>
+    <ol class="src-cites" id="src-cites"></ol>
+    <div class="src-text" id="src-text"></div>
+    <div class="modal-actions">
+      <button class="btn primary" id="btn-src-close">닫기</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="card">
+    <div class="tabs">
+      <button id="tab-summary" class="active" data-task="summary">요약</button>
+      <button id="tab-review" data-task="review">검토</button>
+      <button id="tab-write" data-task="write">작성</button>
+    </div>
+
+    <div id="pane-review">
+      <div class="row between" style="margin-bottom:8px">
+        <label id="file-label"><strong>원문</strong> — 요약할 파일을 불러오세요.</label>
+        <div>
+          <input type="file" id="file-input" class="hidden"
+                 accept=".hwpx,.hwp,.docx,.pdf,.txt,.md">
+          <button class="btn" id="btn-file">파일 불러오기...</button>
+        </div>
+      </div>
+      <div class="upload-card hidden" id="upload-card">
+        <span class="uc-icon">📄</span>
+        <span class="uc-name" id="uc-name"></span>
+        <span class="uc-ok">업로드 완료</span>
+        <button class="btn" id="btn-file-clear">파일 제거</button>
+      </div>
+      <div class="hint" id="file-hint">지원 형식: .hwpx .docx .pdf .txt (최대 4MB)</div>
+      <div class="hint">검토 문서는 데이터로 활용되며 작성 시 참고됩니다. (개인정보 업로드 금지)</div>
+    </div>
+
+    <div id="pane-write" class="hidden">
+      <div class="doctype-row">
+        <span class="doctype-label">문서 양식</span>
+        <div class="radios" id="doc-types"></div>
+      </div>
+      <div id="write-plain">
+        <label for="write-input"><strong>내용 요점</strong> — 작성할 내용의 핵심 사항을 입력하세요.</label>
+        <textarea id="write-input" rows="4" placeholder="예) 신규 직원 환영회 개최 안내"></textarea>
+      </div>
+    </div>
+
+    <div id="pane-handover" class="hidden">
+      <div class="row between" style="margin-bottom:4px">
+        <label><strong>전임자 업무 자료</strong> — 업무 폴더를 통째로 넣으세요.</label>
+        <div class="row">
+          <input type="file" id="ho-folder-input" class="hidden" webkitdirectory multiple>
+          <input type="file" id="ho-file-input" class="hidden" multiple>
+          <button class="btn" id="btn-ho-folder">폴더 선택...</button>
+          <button class="btn" id="btn-ho-files">파일 선택...</button>
+        </div>
+      </div>
+      <div class="drop-zone" id="ho-drop">여기에 폴더나 파일을 끌어다 놓아도 됩니다.</div>
+      <div class="ho-files hidden" id="ho-files"></div>
+      <div class="row between hidden" id="ho-summary-row" style="margin-top:6px">
+        <span class="status" id="ho-summary"></span>
+        <button class="link-btn" id="btn-ho-clear">모두 지우기</button>
+      </div>
+      <div class="hint" id="ho-hint">지원 형식: .hwpx .hwp .docx .pdf .xlsx .csv .eml .txt (파일당 최대 4MB)</div>
+
+      <label class="ho-note-label" for="ho-note"><strong>전임자 메모</strong> (선택) — 자료에 없는 노하우·당부 사항을 적으면 우선 반영됩니다.</label>
+      <textarea id="ho-note" rows="3" placeholder="예) 3월 예산 협의는 기획처와 먼저 구두로 협의한 뒤 공문 발송"></textarea>
+      <div class="hint">올린 자료는 기관 데이터로 보관되어 이후 인수인계서 작성 시 참고됩니다. (개인정보 업로드 금지)</div>
+    </div>
+
+    <div class="row between" style="margin-top:12px">
+      <div class="row">
+        <button class="btn primary" id="btn-run" disabled>요약</button>
+        <button class="btn" id="btn-stop" disabled>중지</button>
+
+        <button class="btn hidden" id="btn-save">한글 파일로 저장</button>
+
+      </div>
+      <div class="status" id="status">준비 중...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="output-title">요약 결과</h2>
+    <div id="output"></div>
+
+    <div id="handover-view" class="hidden">
+      <div class="row between" style="margin-bottom:8px">
+        <div class="seg" id="ho-views">
+          <button data-view="doc" class="active">편집</button>
+          <button data-view="preview">한글 미리보기</button>
+          <button data-view="cal" id="btn-ho-cal" class="hidden">연간 업무 달력</button>
+        </div>
+        <span class="status">[편집]에서 고친 내용이 미리보기·달력·저장에 반영됩니다. [출처: …] 표시는 확인용이라 한글 파일에는 들어가지 않습니다.</span>
+      </div>
+      <textarea id="ho-output" spellcheck="false"
+                placeholder="인수인계서 초안이 여기에 표시됩니다."></textarea>
+      <div id="ho-preview" class="doc-view hidden"></div>
+      <div id="ho-calendar" class="hidden"></div>
+      <div id="ho-sources" class="hidden" style="margin-top:12px">
+        <span class="doctype-label">출처 확인</span>
+        <span class="status"> — 눌러서 근거 자료와 그 자료를 인용한 항목을 확인하세요.</span>
+        <div class="src-chips" id="ho-src-chips"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+let task = "summary";
+let docTypes = ["공문-외부", "공문-내부", "보고서"];
+let controller = null;
+let busy = false;
+
+// 일일 사용 제한 — 브라우저 기준(localStorage). 자정 지나면 초기화.
+// 작성 5회, 검토+요약 합산 5회, 인수인계 5회를 각각 센다.
+const DAILY_LIMIT = 5;
+const WRITE_KEY = "slm.write.daily";
+const REVIEW_KEY = "slm.review.daily";
+const HANDOVER_KEY = "slm.handover.daily";
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+function dayState(key) {
+  try {
+    const s = JSON.parse(localStorage.getItem(key));
+    if (s && s.date === todayStr()) return s;
+  } catch {}
+  return { date: todayStr(), count: 0 };
+}
+function remaining(key) { return Math.max(0, DAILY_LIMIT - dayState(key).count); }
+function bumpUse(key) {
+  const s = dayState(key);
+  s.count += 1;
+  try { localStorage.setItem(key, JSON.stringify(s)); } catch {}
+}
+function limitKeyFor(t) {
+  return t === "write" ? WRITE_KEY : t === "handover" ? HANDOVER_KEY : REVIEW_KEY;
+}
+let maxUploadBytes = 4194304;
+
+// ============================================================
+// 초기화
+// ============================================================
+// 작성 탭의 문서 양식. 서버의 문서 유형(공문·보고서) 뒤에 인수인계서를 붙인다.
+// 인수인계서는 보관 유형이 아니라(datas/ 에 저장하지 않음) 서버 목록에 없다.
+const HANDOVER_TYPE = "인수인계서";
+// 인수인계서 선택지 노출 여부. 잠시 숨겨 둔다 — true 로 바꾸면 기능 전체가 다시 보인다.
+const SHOW_HANDOVER = true;
+
+function renderDocTypes() {
+  const prev = document.querySelector('input[name="doc-type"]:checked')?.value;
+  const all = SHOW_HANDOVER ? [...docTypes, HANDOVER_TYPE] : [...docTypes];
+  const sel = all.includes(prev) ? prev : all[0];
+  $("doc-types").innerHTML = all.map((t) => `
+    <label>
+      <input type="radio" name="doc-type" value="${t}" ${t === sel ? "checked" : ""}>
+      ${t}
+    </label>`).join("");
+}
+
+function currentDocType() {
+  return document.querySelector('input[name="doc-type"]:checked')?.value || docTypes[0];
+}
+
+// 검토 시 문서 유형을 팝업으로 고른다. 선택하면 유형 문자열, 취소하면 null.
+function askDocType() {
+  return new Promise((resolve) => {
+    const list = $("doctype-list");
+    const overlay = $("doctype-overlay");
+    let done = false;
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      overlay.classList.add("hidden");
+      resolve(val);
+    };
+    list.innerHTML = "";
+    for (const t of docTypes) {
+      const b = document.createElement("button");
+      b.textContent = t;
+      b.addEventListener("click", () => finish(t));
+      list.appendChild(b);
+    }
+    $("btn-doctype-cancel").onclick = () => finish(null);
+    overlay.onclick = (e) => { if (e.target === overlay) finish(null); };
+    overlay.classList.remove("hidden");
+  });
+}
+
+function setStatus(msg, isError = false) {
+  const el = $("status");
+  el.textContent = msg;
+  el.classList.toggle("error", isError);
+}
+
+// ============================================================
+// 기관 — 서버(GitHub) 공유. 기본 목록 + 웹에서 추가한 기관 모두 /api/orgs 로 받는다.
+// 선택 결과만 이 브라우저에 기억한다.
+// ============================================================
+const ORG_SELECTED_KEY = "slm.orgs.selected";
+
+let orgs = [];
+let selectedOrgId = null;
+let orgFilter = "";
+
+const findOrg = (id) => orgs.find((o) => o.id === id) || null;
+function selectedOrg() { return findOrg(selectedOrgId); }
+
+// 서버가 기관 정보를 정규화하므로 선택한 기관 객체를 통째로 보낸다
+function orgPayload() { return selectedOrg() || null; }
+
+function setSelectedOrg(id) {
+  selectedOrgId = id;
+  try { if (id) localStorage.setItem(ORG_SELECTED_KEY, id); } catch {}
+  const org = selectedOrg();
+  $("org-current").textContent = org ? org.name : "—";
+  $("org-bar").classList.toggle("hidden", !org);
+  renderOrgList();
+}
+
+// 공백과 대소문자를 무시하고 비교한다 ("한국 전력" 으로도 "한국전력공사" 를 찾도록)
+const normalizeName = (s) => (s || "").toLowerCase().replace(/\s+/g, "");
+
+function filteredOrgs() {
+  const q = normalizeName(orgFilter);
+  if (!q) return orgs;
+  return orgs.filter((o) => normalizeName(o.name).includes(q));
+}
+
+function renderOrgList() {
+  const list = $("org-list");
+  const shown = filteredOrgs();
+  const empty = $("org-empty");
+  if (!shown.length) {
+    empty.textContent = orgs.length
+      ? `"${orgFilter.trim()}" 에 해당하는 기관이 없습니다.`
+      : "등록된 기관이 없습니다.";
+    empty.classList.remove("hidden");
+  } else {
+    empty.classList.add("hidden");
+  }
+  list.innerHTML = "";
+  for (const org of shown) {
+    const row = document.createElement("div");
+    row.className = "org-item" + (org.id === selectedOrgId ? " selected" : "");
+    row.innerHTML = `<div class="grow"><div class="nm"></div></div>`;
+    row.querySelector(".nm").textContent = org.name;
+    row.addEventListener("click", () => setSelectedOrg(org.id));
+    list.appendChild(row);
+  }
+}
+
+async function fetchOrgs() {
+  try {
+    const r = await fetch("/api/orgs");
+    const data = await r.json();
+    orgs = Array.isArray(data.orgs) ? data.orgs : [];
+  } catch {
+    orgs = [];
+  }
+}
+
+function showOrgView(which) {
+  $("org-view-list").classList.toggle("hidden", which !== "list");
+  $("org-view-form").classList.toggle("hidden", which !== "form");
+}
+
+function openOrgModal() {
+  orgFilter = "";
+  $("org-search").value = "";
+  renderOrgList();
+  showOrgView("list");
+  $("org-overlay").classList.remove("hidden");
+}
+
+function openOrgForm(draftName = "") {
+  $("f-name").value = draftName;
+  $("org-form-error").classList.add("hidden");
+  showOrgView("form");
+  $("f-name").focus();
+}
+
+async function saveOrgForm() {
+  const name = $("f-name").value.trim();
+  const err = $("org-form-error");
+  if (!name) {
+    err.textContent = "기관명을 입력해 주세요.";
+    err.classList.remove("hidden");
+    return;
+  }
+  $("btn-org-save").disabled = true;
+  try {
+    const r = await fetch("/api/orgs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `오류 ${r.status}`);
+    await fetchOrgs();
+    const added = orgs.find((o) => o.name === name) || data.org || null;
+    if (added) setSelectedOrg(added.id);
+    orgFilter = "";
+    $("org-search").value = "";
+    showOrgView("list");
+  } catch (e) {
+    err.textContent = "추가 실패: " + e.message;
+    err.classList.remove("hidden");
+  } finally {
+    $("btn-org-save").disabled = false;
+  }
+}
+
+$("org-search").addEventListener("input", (e) => {
+  orgFilter = e.target.value;
+  renderOrgList();
+});
+$("btn-org-change").addEventListener("click", openOrgModal);
+$("btn-org-add").addEventListener("click", () => openOrgForm(orgFilter.trim()));
+$("btn-org-cancel").addEventListener("click", () => showOrgView("list"));
+$("btn-org-save").addEventListener("click", saveOrgForm);
+$("btn-org-close").addEventListener("click", () => {
+  if (!selectedOrg()) return;
+  $("org-overlay").classList.add("hidden");
+});
+
+async function initOrgs() {
+  await fetchOrgs();
+  const stored = localStorage.getItem(ORG_SELECTED_KEY);
+  if (stored && findOrg(stored)) {
+    setSelectedOrg(stored);
+    return true;
+  }
+  setSelectedOrg(null);
+  openOrgModal();
+  return false;
+}
+
+async function init() {
+  renderDocTypes();
+  try {
+    const r = await fetch("/api/health");
+    const h = await r.json();
+    if (Array.isArray(h.doc_types) && h.doc_types.length) {
+      docTypes = h.doc_types;
+      renderDocTypes();
+    }
+    if (Array.isArray(h.supported_exts)) {
+      if (h.max_upload_bytes) maxUploadBytes = h.max_upload_bytes;
+      const mb = Math.floor(maxUploadBytes / 1048576);
+      $("file-input").setAttribute("accept", h.supported_exts.join(","));
+      $("file-hint").textContent =
+        `지원 형식: ${h.supported_exts.join(" ")} (최대 ${mb}MB)`;
+      if (Array.isArray(h.handover_exts)) handoverExts = h.handover_exts;
+      $("ho-file-input").setAttribute("accept", handoverExts.join(","));
+      $("ho-hint").textContent =
+        `지원 형식: ${handoverExts.join(" ")} (파일당 최대 ${mb}MB, 그 밖의 파일은 자동으로 제외)`;
+    }
+    $("model-label").textContent = h.ok
+      ? ""
+      : "서버에 API 키가 설정되지 않았습니다.";
+    if (!h.ok) {
+      setStatus("서버 설정 오류: GEMINI_API_KEY 없음", true);
+      return;
+    }
+    const hadSelection = await initOrgs();
+    $("btn-run").disabled = false;
+    setStatus(hadSelection
+      ? "준비 완료. 내용을 입력한 뒤 버튼을 누르세요."
+      : "기관을 선택하세요.");
+  } catch (e) {
+    $("model-label").textContent = "서버 연결 실패";
+    setStatus("서버에 연결하지 못했습니다: " + e.message, true);
+  }
+}
+
+// ============================================================
+// 탭
+// ============================================================
+const TABS = ["summary", "review", "write"];
+let tab = "summary";
+
+function switchTab(next) {
+  if (busy) return;
+  tab = next;
+  for (const t of TABS) $("tab-" + t).classList.toggle("active", t === next);
+  applyMode();
+}
+
+// 작성 탭에서 문서 양식으로 인수인계서를 고르면 인수인계 모드(task = "handover")가 된다
+function applyMode() {
+  task = tab === "write" && currentDocType() === HANDOVER_TYPE ? "handover" : tab;
+  const isWrite = task === "write";
+  const isSummary = task === "summary";
+  const isHandover = task === "handover";
+  // 작성 탭은 문서 양식 줄을 공유하고, 그 아래가 내용 요점(공문·보고서) 또는 자료 업로드(인수인계서)
+  // 검토·요약은 파일 하나 업로드 화면을 공유
+  $("pane-write").classList.toggle("hidden", tab !== "write");
+  $("write-plain").classList.toggle("hidden", !isWrite);
+  $("pane-handover").classList.toggle("hidden", !isHandover);
+  $("pane-review").classList.toggle("hidden", tab === "write");
+  $("btn-run").textContent = isWrite ? "생성" : isHandover ? "인수인계서 생성"
+    : isSummary ? "요약" : "검토";
+  // 한글 파일 저장은 작성·인수인계 결과에만
+  $("btn-save").classList.toggle("hidden", !(isWrite || isHandover));
+  // 인수인계 결과는 전임자가 고칠 수 있도록 편집 가능한 화면을 따로 쓴다
+  $("output").classList.toggle("hidden", isHandover);
+  $("handover-view").classList.toggle("hidden", !isHandover);
+  $("output-title").textContent = isWrite ? "작성 결과" : isHandover ? "인수인계서 초안"
+    : isSummary ? "요약 결과" : "검토 결과";
+  $("file-label").innerHTML = "<strong>원문</strong> — " + (isSummary ? "요약할" : "검토할") + " 파일을 불러오세요.";
+}
+for (const t of TABS) $("tab-" + t).addEventListener("click", () => switchTab(t));
+$("doc-types").addEventListener("change", applyMode);   // 라디오는 다시 그려지므로 위임
+
+// ============================================================
+// 파일 업로드
+// ============================================================
+// 업로드한 파일의 추출 텍스트는 화면에 보여주지 않고 여기에만 들고 있는다.
+let uploadedText = null;
+
+function showUpload(file) {
+  uploadedText = null;   // 호출부에서 다시 채운다
+  $("uc-name").textContent = file.name;
+  $("upload-card").classList.remove("hidden");
+  $("file-hint").classList.add("hidden");
+}
+
+function clearUpload() {
+  uploadedText = null;
+  $("upload-card").classList.add("hidden");
+  $("file-hint").classList.remove("hidden");
+}
+
+// 검토 대상 원문은 업로드한 파일에서 추출한 텍스트뿐이다
+function reviewSource() {
+  return uploadedText || "";
+}
+
+$("btn-file").addEventListener("click", () => $("file-input").click());
+$("btn-file-clear").addEventListener("click", () => {
+  clearUpload();
+  setStatus("파일을 제거했습니다.");
+});
+
+$("file-input").addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > maxUploadBytes) {
+    const mb = Math.floor(maxUploadBytes / 1048576);
+    clearUpload();
+    setStatus(`파일이 너무 큽니다 (${(file.size / 1048576).toFixed(1)}MB). ${mb}MB 이하만 올릴 수 있습니다. 한글에서 '다른 이름으로 저장 → .hwpx' 로 줄여 보세요.`, true);
+    e.target.value = "";
+    return;
+  }
+  setStatus(`파일 읽는 중: ${file.name}`);
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const r = await fetch("/api/extract", { method: "POST", body: fd });
+    if (!r.ok) {
+      let msg = `오류 ${r.status}`;
+      if (r.status === 413) msg = "파일이 너무 큽니다. 더 작은 파일로 올려 주세요.";
+      else { try { msg = (await r.json()).detail || msg; } catch {} }
+      throw new Error(msg);
+    }
+    const data = await r.json();
+    showUpload(file);
+    uploadedText = data.text;
+    setStatus(`업로드 완료: ${file.name}`);
+  } catch (err) {
+    clearUpload();
+    setStatus("파일 불러오기 실패: " + err.message, true);
+  } finally {
+    e.target.value = "";
+  }
+});
+
+// ============================================================
+// 인수인계 — 업무 폴더의 자료를 한 건씩 추출해 두었다가 한 번에 보낸다.
+// 파일 하나당 요청 하나라 Vercel 요청 크기(4.5MB)에 폴더 전체가 걸리지 않는다.
+// ============================================================
+let handoverExts = [".hwpx", ".hwp", ".docx", ".pdf", ".txt", ".md", ".xlsx", ".csv", ".eml"];
+const HO_MAX_FILES = 100;
+const HO_CONCURRENCY = 3;
+// 서버(core/prompts.py)와 같은 상한. 생성 요청 본문이 4.5MB 를 넘지 않게 여기서도 자른다.
+const HO_MAX_FILE_CHARS = 60000;
+const HO_MAX_TOTAL_CHARS = 600000;
+const NOTE_SOURCE = "전임자 메모";
+
+let hoFiles = [];      // { id, name, file, status: wait|reading|ok|error, text, error }
+let hoSeq = 0;
+let hoReading = 0;
+
+const extOf = (name) => (name.match(/\.[^./\\]+$/)?.[0] || "").toLowerCase();
+const baseName = (name) => name.split(/[\\/]/).pop();
+const fileKey = (file) => `${file.name}|${file.size}|${file.lastModified}`;
+
+function addHandoverFiles(list) {
+  let added = 0, unsupported = 0, overflow = 0, dup = 0;
+  for (const { file, path } of list) {
+    const name = path || file.name;
+    const base = baseName(name);
+    // 오피스 임시 파일(~$...)·숨김 파일은 조용히 건너뛴다
+    if (base.startsWith("~$") || base.startsWith(".")) continue;
+    if (!handoverExts.includes(extOf(base))) { unsupported++; continue; }
+    // 폴더와 파일을 겹쳐 넣어도 같은 파일은 한 번만 (경로가 달라도 이름·크기·수정일이 같으면 동일)
+    if (hoFiles.some((f) => f.name === name || (f.key && f.key === fileKey(file)))) { dup++; continue; }
+    if (hoFiles.length >= HO_MAX_FILES) { overflow++; continue; }
+    hoFiles.push({ id: ++hoSeq, name, file, key: fileKey(file), status: "wait", text: "", error: "" });
+    added++;
+  }
+  const notes = [`자료 ${added}건 추가`];
+  if (dup) notes.push(`이미 있는 자료 ${dup}건 제외`);
+  if (unsupported) notes.push(`지원하지 않는 형식 ${unsupported}건 제외`);
+  if (overflow) notes.push(`최대 ${HO_MAX_FILES}건을 넘는 ${overflow}건 제외`);
+  setStatus(notes.join(", "), added === 0);
+  extractPending();
+}
+
+function extractPending() {
+  while (hoReading < HO_CONCURRENCY) {
+    const f = hoFiles.find((x) => x.status === "wait");
+    if (!f) break;
+    f.status = "reading";
+    hoReading++;
+    extractHandoverFile(f).finally(() => {
+      hoReading--;
+      extractPending();
+    });
+  }
+  renderHandoverFiles();
+}
+
+async function extractHandoverFile(f) {
+  try {
+    if (f.file.size > maxUploadBytes) {
+      throw new Error(`${Math.floor(maxUploadBytes / 1048576)}MB 초과`);
+    }
+    const fd = new FormData();
+    fd.append("file", f.file, baseName(f.name));
+    const r = await fetch("/api/extract", { method: "POST", body: fd });
+    if (!r.ok) {
+      let msg = `오류 ${r.status}`;
+      if (r.status === 413) msg = "파일이 너무 큼";
+      else { try { msg = (await r.json()).detail || msg; } catch {} }
+      throw new Error(msg);
+    }
+    f.text = (await r.json()).text || "";
+    f.status = "ok";
+  } catch (e) {
+    f.status = "error";
+    f.error = e.message;
+  } finally {
+    f.file = null;   // 추출이 끝나면 원본은 들고 있을 필요 없다
+  }
+}
+
+function renderHandoverFiles() {
+  const box = $("ho-files");
+  box.innerHTML = "";
+  for (const f of hoFiles) {
+    const row = document.createElement("div");
+    row.className = "ho-file";
+    row.innerHTML = `<span class="nm"></span><span class="st"></span>`;
+    row.querySelector(".nm").textContent = f.name;
+    row.querySelector(".nm").title = f.name;
+    const st = row.querySelector(".st");
+    if (f.status === "ok") {
+      st.textContent = `${f.text.length.toLocaleString()}자`;
+      st.classList.add("ok");
+      const view = document.createElement("button");
+      view.textContent = "보기";
+      view.addEventListener("click", () => openSource(f.name));
+      row.appendChild(view);
+    } else if (f.status === "error") {
+      st.textContent = "제외: " + f.error;
+      st.title = f.error;
+      st.classList.add("err");
+    } else {
+      st.textContent = f.status === "reading" ? "읽는 중..." : "대기";
+    }
+    const del = document.createElement("button");
+    del.textContent = "제거";
+    del.addEventListener("click", () => {
+      if (busy) return;
+      hoFiles = hoFiles.filter((x) => x !== f);
+      renderHandoverFiles();
+    });
+    row.appendChild(del);
+    box.appendChild(row);
+  }
+
+  const ok = hoFiles.filter((f) => f.status === "ok").length;
+  const err = hoFiles.filter((f) => f.status === "error").length;
+  const pending = hoFiles.length - ok - err;
+  const parts = [`자료 ${ok}건 준비됨`];
+  if (pending) parts.push(`${pending}건 읽는 중`);
+  if (err) parts.push(`${err}건 제외`);
+  $("ho-summary").textContent = parts.join(" · ");
+  box.classList.toggle("hidden", !hoFiles.length);
+  $("ho-summary-row").classList.toggle("hidden", !hoFiles.length);
+}
+
+// 서버로 보낼 자료. 상한을 넘는 분량은 잘라내되, 잘렸다는 사실은 남긴다.
+function handoverPayload() {
+  const out = [];
+  let total = 0;
+  for (const f of hoFiles) {
+    if (f.status !== "ok" || !f.text.trim()) continue;
+    let text = f.text;
+    if (text.length > HO_MAX_FILE_CHARS) {
+      text = text.slice(0, HO_MAX_FILE_CHARS) + "\n(이하 분량이 많아 생략)";
+    }
+    if (total + text.length > HO_MAX_TOTAL_CHARS) text = "";
+    total += text.length;
+    out.push({ name: f.name, text: text || "(전체 분량 한도를 넘어 생략)" });
+  }
+  return out;
+}
+
+$("btn-ho-folder").addEventListener("click", () => $("ho-folder-input").click());
+$("btn-ho-files").addEventListener("click", () => $("ho-file-input").click());
+for (const id of ["ho-folder-input", "ho-file-input"]) {
+  $(id).addEventListener("change", (e) => {
+    const files = [...(e.target.files || [])];
+    // 폴더 선택이면 "폴더/하위/파일.hwpx" 형태의 상대 경로가 들어 있다
+    addHandoverFiles(files.map((file) => ({ file, path: file.webkitRelativePath || file.name })));
+    e.target.value = "";
+  });
+}
+$("btn-ho-clear").addEventListener("click", () => {
+  if (busy) return;
+  hoFiles = [];
+  renderHandoverFiles();
+  setStatus("자료를 모두 지웠습니다.");
+});
+
+// 끌어다 놓기 — 폴더는 FileSystemEntry 로 하위까지 훑는다
+async function walkEntry(entry, prefix, out) {
+  if (entry.isFile) {
+    const file = await new Promise((res) => entry.file(res, () => res(null)));
+    if (file) out.push({ file, path: prefix + file.name });
+    return;
+  }
+  if (entry.isDirectory) {
+    const reader = entry.createReader();
+    // readEntries 는 한 번에 일부만 돌려주므로 빈 배열이 나올 때까지 반복한다
+    let batch;
+    do {
+      batch = await new Promise((res) => reader.readEntries(res, () => res([])));
+      for (const child of batch) await walkEntry(child, prefix + entry.name + "/", out);
+    } while (batch.length);
+  }
+}
+
+const dropZone = $("ho-drop");
+for (const ev of ["dragenter", "dragover"]) {
+  dropZone.addEventListener(ev, (e) => { e.preventDefault(); dropZone.classList.add("over"); });
+}
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("over"));
+dropZone.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("over");
+  if (busy) return;
+  // 항목(entry)은 drop 이벤트 안에서 동기적으로 꺼내야 한다
+  const entries = [...(e.dataTransfer.items || [])]
+    .map((it) => it.webkitGetAsEntry?.())
+    .filter(Boolean);
+  if (!entries.length) {
+    addHandoverFiles([...e.dataTransfer.files].map((file) => ({ file, path: file.name })));
+    return;
+  }
+  setStatus("폴더를 살펴보는 중...");
+  const out = [];
+  for (const en of entries) await walkEntry(en, "", out);
+  addHandoverFiles(out);
+});
+// 끌어다 놓기를 영역 밖에 해도 브라우저가 파일을 열어 화면을 떠나지 않게
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => e.preventDefault());
+
+// ---------- 출처 ----------
+const SRC_RE = /\[출처:\s*([^\]]+)\]/g;
+const stripSources = (s) => s.replace(SRC_RE, "").trim();
+
+// 서버가 골라 참고한 기관 보관 문서 [{name: "기관보관/유형/제목", type, saved, text}].
+// 생성이 끝날 때 done 이벤트로 받는다.
+let hoOrgDocs = [];
+
+// 출처로 인정하는 자료: 올린 자료 + 기관 보관 문서
+function sourcePool() {
+  return [...hoFiles, ...hoOrgDocs.map((d) => ({ ...d, org: true }))];
+}
+
+function findHandoverFile(name) {
+  const n = normalizeName(name);
+  const b = normalizeName(baseName(name));
+  const pool = sourcePool();
+  return pool.find((f) => normalizeName(f.name) === n)
+    || pool.find((f) => normalizeName(baseName(f.name)) === b)
+    || null;
+}
+
+// "[출처: a.hwpx, b.pdf]" → ["a.hwpx", "b.pdf"]. 파일명에 쉼표가 든 경우를 위해 통째 일치를 먼저 본다.
+// (통째 비교는 정확히 같을 때만. 끝부분만 같아도 맞다고 보면 "a, 폴더/b" 가 b 로 오인된다)
+function splitSources(raw) {
+  const whole = normalizeName(raw);
+  if (raw.trim() === NOTE_SOURCE
+      || sourcePool().some((f) => normalizeName(f.name) === whole
+                               || normalizeName(baseName(f.name)) === whole)) {
+    return [raw.trim()];
+  }
+  return raw.split(/\s*,\s*/).map((s) => s.trim()).filter(Boolean);
+}
+
+// AI 가 경로를 붙이거나 뗀 이름도 같은 자료로 모은다
+function canonicalSource(name) {
+  if (name === NOTE_SOURCE) return name;
+  return findHandoverFile(name)?.name || name;
+}
+
+// 인수인계서 본문 → { 출처 이름: [그 출처를 단 항목들] }
+function citedSources(text) {
+  const map = new Map();
+  for (const line of text.split("\n")) {
+    for (const m of line.matchAll(SRC_RE)) {
+      for (const name of splitSources(m[1]).map(canonicalSource)) {
+        if (!map.has(name)) map.set(name, []);
+        map.get(name).push(stripSources(line));
+      }
+    }
+  }
+  return map;
+}
+
+function sourceChip(name) {
+  const b = document.createElement("button");
+  b.className = "src-chip";
+  const known = name === NOTE_SOURCE || findHandoverFile(name);
+  b.textContent = baseName(name);
+  if (known?.org) {
+    b.classList.add("org");
+    b.textContent = "기관 보관 · " + baseName(name);
+  }
+  if (known) {
+    b.title = name;
+    b.addEventListener("click", () => openSource(name));
+  } else {
+    // 올린 자료 목록에 없는 이름 — AI 가 지어냈거나 이름을 바꿔 적은 것
+    b.classList.add("bad");
+    b.textContent += " (확인 안 됨)";
+    b.title = "올린 자료에 없는 파일명입니다. 이 출처를 단 항목은 직접 확인하세요.";
+  }
+  return b;
+}
+
+function renderSources() {
+  const map = citedSources($("ho-output").value);
+  const box = $("ho-src-chips");
+  box.innerHTML = "";
+  for (const [name, lines] of map) {
+    const chip = sourceChip(name);
+    chip.textContent += ` · ${lines.length}`;
+    box.appendChild(chip);
+  }
+  $("ho-sources").classList.toggle("hidden", !map.size);
+}
+
+function openSource(name) {
+  const isNote = name === NOTE_SOURCE;
+  const f = isNote ? null : findHandoverFile(name);
+  const cites = citedSources($("ho-output").value).get(canonicalSource(name)) || [];
+  $("src-title").textContent = isNote ? NOTE_SOURCE : (f ? f.name : name);
+  const orgNote = f?.org
+    ? `우리 기관에 보관된 ${f.type} 문서${f.saved ? ` (${f.saved} 보관)` : ""}입니다. 전임자 자료가 아닌 보조 자료입니다. `
+    : "";
+  $("src-sub").textContent = orgNote + (cites.length
+    ? `이 자료를 근거로 한 항목 ${cites.length}건 — 아래 원문과 맞는지 확인하세요.`
+    : "인수인계서에서 이 자료를 인용한 항목은 없습니다.");
+  const ol = $("src-cites");
+  ol.innerHTML = "";
+  for (const c of cites) {
+    const li = document.createElement("li");
+    li.textContent = c.replace(/^[□○◦ㅇ·\s]+/, "");
+    ol.appendChild(li);
+  }
+  ol.classList.toggle("hidden", !cites.length);
+  $("src-text").textContent = isNote ? $("ho-note").value : (f ? f.text : "");
+  $("src-text").scrollTop = 0;
+  $("src-overlay").classList.remove("hidden");
+}
+$("btn-src-close").addEventListener("click", () => $("src-overlay").classList.add("hidden"));
+$("src-overlay").addEventListener("click", (e) => {
+  if (e.target === $("src-overlay")) $("src-overlay").classList.add("hidden");
+});
+
+// ---------- 연간 업무 달력 ----------
+// 인수인계서의 "N. 연간 업무 달력" 섹션에서 "□ 3월" 아래 "○ ..." 항목을 모은다.
+const CAL_HEAD_RE = /^\s*\d+\.\s*연간\s*업무\s*달력/;
+
+function parseCalendar(text) {
+  const lines = text.split("\n");
+  const start = lines.findIndex((l) => CAL_HEAD_RE.test(l));
+  if (start < 0) return null;
+  const months = new Map();
+  let cur = null;
+  for (const line of lines.slice(start + 1)) {
+    if (/^\s*\d+\.\s/.test(line)) break;              // 다음 대항목
+    const head = line.match(/^\s*□\s*(매월|\d{1,2}\s*월)\s*[:：-]?\s*(.*)$/);
+    if (head) {
+      cur = head[1].replace(/\s/g, "");
+      if (!months.has(cur)) months.set(cur, []);
+      // "□ 3월: 예산 제출" 한 줄 형태
+      if (head[2].trim() && !isEmptyNote(stripSources(head[2]))) months.get(cur).push(head[2].trim());
+      continue;
+    }
+    const item = line.match(/^\s*[○◦ㅇ·]\s*(.+)$/);
+    if (item && cur && !isEmptyNote(stripSources(item[1]))) months.get(cur).push(item[1].trim());
+  }
+  return months;
+}
+
+// 달력 순서: 매월 → 1월 ~ 12월
+const CAL_KEYS = ["매월", ...Array.from({ length: 12 }, (_, i) => `${i + 1}월`)];
+
+// ---------- 한글 파일·미리보기용 인수인계서 ----------
+// 편집 화면의 원문은 그대로 두고(출처 확인 기능이 [출처: ...] 를 읽는다),
+// 내보낼 때만 출처 표시를 빼고 연간 업무 달력 섹션을 "월 | 할 일" 표로 바꾼다.
+// 한 달에 할 일이 여럿이면 줄을 나누고 월 칸은 첫 줄에만 쓴다(셀 병합 없이 단순 표).
+const SRC_TAG_RE = /\s*\[출처:[^\]]*\]/g;
+
+function handoverExportText(raw) {
+  let lines = (raw || "").split("\n");
+  const months = parseCalendar(raw);
+  const start = lines.findIndex((l) => CAL_HEAD_RE.test(l));
+  if (months && start >= 0) {
+    let end = start + 1;
+    while (end < lines.length && !/^\s*\d+\.\s/.test(lines[end])) end++;
+    // 일정이 하나도 없으면 본문을 비워 두고, 아래 dropEmptySections 가 섹션째 뺀다
+    const table = [];
+    for (const key of CAL_KEYS) {
+      (months.get(key) || []).forEach((item, i) => {
+        const text = stripSources(item).replace(/\|/g, "/");   // 칸 구분자와 겹치지 않게
+        table.push(`| ${i ? "" : key} | ${text} |`);
+      });
+    }
+    if (table.length) table.unshift("| 월 | 할 일 |");
+    lines = [...lines.slice(0, start + 1), ...table, "", ...lines.slice(end)];
+  }
+  lines = lines.map((l) => l.replace(SRC_TAG_RE, "").replace(/\s+$/, ""));
+  return dropEmptySections(lines).join("\n");
+}
+
+// "자료에서 확인되지 않음", "내용 없음", "해당 없음" 처럼 내용이 없다는 것만 알리는 줄.
+// 프롬프트가 쓰지 말라고 하지만 모델이 가끔 쓰므로 내보낼 때 한 번 더 걸러 낸다.
+const EMPTY_NOTE_RE = /^(자료에서\s*)?(확인되지\s*않|내용\s*(이\s*)?없|해당\s*(사항\s*)?없|관련\s*(자료|내용)\s*없|없음)/;
+const isEmptyNote = (line) => EMPTY_NOTE_RE.test(line.replace(/^[\s□○◦ㅇ·\-]+/, "").trim());
+// 대항목 "1. 담당 업무 개요" (들여쓰지 않은 번호 줄)
+const SECTION_RE = /^\d{1,2}\.\s+\S/;
+
+// 내용 없음 줄을 지우고, 본문이 비게 된 대항목은 통째로 뺀 뒤 번호를 1부터 다시 매긴다
+function dropEmptySections(lines) {
+  const kept = lines.filter((l) => SECTION_RE.test(l) || !isEmptyNote(l));
+  const out = [];
+  let n = 0;
+  for (let i = 0; i < kept.length;) {
+    if (!SECTION_RE.test(kept[i])) { out.push(kept[i]); i++; continue; }
+    let j = i + 1;
+    while (j < kept.length && !SECTION_RE.test(kept[j])) j++;
+    const body = kept.slice(i + 1, j);
+    if (body.some((l) => l.trim())) {
+      n++;
+      out.push(kept[i].replace(/^\d{1,2}\./, `${n}.`), ...body);
+    }
+    i = j;
+  }
+  return out;
+}
+
+function renderCalendar() {
+  const box = $("ho-calendar");
+  box.innerHTML = "";
+  const months = parseCalendar($("ho-output").value);
+  if (!months || ![...months.values()].some((v) => v.length)) {
+    box.innerHTML = `<div class="cal-empty">자료에서 월별 일정을 찾지 못했습니다. (한글 파일에도 달력 섹션은 넣지 않습니다)</div>`;
+    return;
+  }
+  const grid = document.createElement("div");
+  grid.className = "cal-grid";
+  const thisMonth = new Date().getMonth() + 1;
+  const keys = CAL_KEYS.filter((k) => k !== "매월" || months.has(k));
+  for (const key of keys) {
+    const items = months.get(key) || [];
+    const cell = document.createElement("div");
+    cell.className = "cal-month" + (key === "매월" ? " wide" : "")
+      + (key === `${thisMonth}월` ? " now" : "") + (items.length ? "" : " empty");
+    cell.innerHTML = `<h3><span></span>${key === `${thisMonth}월` ? "<small>이번 달</small>" : ""}</h3>`;
+    cell.querySelector("h3 span").textContent = key;
+    if (!items.length) {
+      cell.insertAdjacentHTML("beforeend", `<div class="none">—</div>`);
+    } else {
+      const ul = document.createElement("ul");
+      for (const it of items) {
+        const li = document.createElement("li");
+        li.appendChild(document.createTextNode(stripSources(it) + " "));
+        for (const m of it.matchAll(SRC_RE)) {
+          for (const name of splitSources(m[1])) li.appendChild(sourceChip(name));
+        }
+        ul.appendChild(li);
+      }
+      cell.appendChild(ul);
+    }
+    grid.appendChild(cell);
+  }
+  box.appendChild(grid);
+}
+
+let hoView = "doc";
+function setHandoverView(view) {
+  hoView = view;
+  for (const b of $("ho-views").querySelectorAll("button")) {
+    b.classList.toggle("active", b.dataset.view === view);
+  }
+  $("ho-output").classList.toggle("hidden", view !== "doc");
+  $("ho-preview").classList.toggle("hidden", view !== "preview");
+  $("ho-calendar").classList.toggle("hidden", view !== "cal");
+  if (view === "preview") $("ho-preview").innerHTML = renderDoc(handoverExportText($("ho-output").value));
+  if (view === "cal") renderCalendar();
+}
+for (const b of $("ho-views").querySelectorAll("button")) {
+  b.addEventListener("click", () => setHandoverView(b.dataset.view));
+}
+
+// 달력 보기 버튼은 월별 일정이 있을 때만 보인다 (한글 파일에 달력 섹션이 들어가는 조건과 같다)
+function updateCalendarButton() {
+  const months = parseCalendar($("ho-output").value);
+  const has = !!months && [...months.values()].some((v) => v.length);
+  $("btn-ho-cal").classList.toggle("hidden", !has);
+  if (!has && hoView === "cal") setHandoverView("preview");
+}
+
+// 편집 내용이 바뀌면 출처 칩·달력 버튼을 다시 계산한다
+function refreshHandoverExtras() {
+  renderSources();
+  updateCalendarButton();
+}
+
+let srcTimer = null;
+$("ho-output").addEventListener("input", () => {
+  clearTimeout(srcTimer);
+  srcTimer = setTimeout(refreshHandoverExtras, 400);
+});
+
+// ============================================================
+// 생성 / 검토
+// ============================================================
+// 스트리밍 중 화면 깜빡임을 줄이기 위한 임시 정리.
+// 최종 결과는 서버가 done 이벤트로 보내주는 text 로 교체된다.
+function lightStrip(s) {
+  return s.replace(/\*\*(.+?)\*\*/gs, "$1")
+          .replace(/^#{1,6}\s+/gm, "")
+          .replace(/^(\s*)[-*]\s+/gm, "$1");
+}
+
+function setBusy(state) {
+  busy = state;
+  $("btn-run").disabled = state;
+  $("btn-stop").disabled = !state;
+  for (const t of TABS) $("tab-" + t).disabled = state;
+  for (const r of document.querySelectorAll('input[name="doc-type"]')) r.disabled = state;
+  for (const id of ["btn-ho-folder", "btn-ho-files", "btn-ho-clear"]) $(id).disabled = state;
+  $("ho-output").readOnly = state;
+}
+
+// ---------- 한글 저장본 미리보기 ----------
+// core/hwpx_style.py 와 같은 기준으로 그린다. 한쪽을 고치면 다른 쪽도 맞출 것.
+//   첫 줄 → 제목 상자 (공문처럼 수신·제목으로 시작하면 제목 상자 없이 글자 그대로)
+//   제목 다음 일자 줄·공백으로 오른쪽에 민 줄 → 오른쪽 정렬
+//   "1. 소제목" → 소제목,  "| 칸 | 칸 |" 두 줄 이상 → 표,  □ ○ → 들여쓰기
+const DOC_INDENT = { "□": 1, "○": 3, "-": 5, "·": 5, "※": 1 };
+const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l) && (l.match(/\|/g) || []).length >= 3;
+const isTableSep = (l) => /^\s*\|?(\s*:?-{2,}:?\s*\|)+\s*:?-*:?\s*\|?\s*$/.test(l);
+const tableCells = (l) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+const escHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function renderDoc(text) {
+  const lines = (text || "").split("\n");
+  let titleAt = lines.findIndex((l) => l.trim());
+  if (titleAt >= 0 && /^\s*(수\s*신|발\s*신|제\s*목|내부결재)/.test(lines[titleAt])) titleAt = -1;
+  let dateAt = -1;
+  if (titleAt >= 0) {
+    let k = titleAt + 1;
+    while (k < lines.length && !lines[k].trim()) k++;
+    if (k < lines.length && /^\s*'?\d{2,4}\.\s*\d{1,2}\./.test(lines[k])) dateAt = k;
+  }
+  const report = titleAt >= 0;   // 보고서 서식은 제목 상자가 있는 문서에만
+  let html = "";
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (report && !line.trim()) { i++; continue; }   // 간격은 소제목 위 여백이 맡는다
+    if (i === titleAt) {
+      html += `<div class="d-title">${escHtml(line.trim())}</div>`;
+      i++;
+      continue;
+    }
+    if (i === dateAt || (report && /^ {16,}\S/.test(line))) {
+      html += `<div class="d-right">${escHtml(line.trim())}</div>`;
+      i++;
+      continue;
+    }
+    if (isTableRow(line)) {
+      const rows = [];
+      let j = i;
+      while (j < lines.length && isTableRow(lines[j])) {
+        if (!isTableSep(lines[j])) rows.push(tableCells(lines[j]));
+        j++;
+      }
+      if (rows.length >= 2) {   // 머리글만 있는 한 줄은 표로 보지 않는다
+        const ncol = Math.max(...rows.map((r) => r.length));
+        const full = rows.map((r) => [...r, ...Array(ncol - r.length).fill("")]);
+        // 칸 너비·정렬은 hwpx_style.py 의 _col_widths / _LEFT_ALIGN_CHARS 와 같은 기준
+        const longest = (c, from) => Math.max(0, ...full.slice(from).map((r) => r[c].length));
+        const weights = [...Array(ncol).keys()].map((c) => Math.min(30, Math.max(4, longest(c, 0))));
+        const sum = weights.reduce((a, b) => a + b, 0);
+        const left = [...Array(ncol).keys()].map((c) => longest(c, 1) > 14);
+        html += "<table><colgroup>"
+          + weights.map((w) => `<col style="width:${(100 * w / sum).toFixed(1)}%">`).join("")
+          + "</colgroup>" + full.map((r, k) => "<tr>"
+          + r.map((c, j) => k ? `<td${left[j] ? ' class="l"' : ""}>${escHtml(c)}</td>`
+                              : `<th>${escHtml(c)}</th>`).join("")
+          + "</tr>").join("") + "</table>";
+        i = j;
+        continue;
+      }
+    }
+    if (report && /^\s*\d{1,2}\.\s+[가-힣]/.test(line)) {
+      html += `<div class="d-head">${escHtml(line.trim())}</div>`;
+    } else {
+      const body = line.trimStart();
+      const shown = report && body && DOC_INDENT[body[0]] !== undefined
+        ? " ".repeat(DOC_INDENT[body[0]]) + body : line;
+      html += `<div class="d-line">${escHtml(shown) || "&nbsp;"}</div>`;
+    }
+    i++;
+  }
+  return html;
+}
+
+// 결과 표시 — 인수인계는 편집 가능한 textarea, 나머지는 읽기 전용 영역.
+// 화면에는 미리보기를 그려도 저장·복사에는 원문 텍스트(outRaw)를 쓴다.
+let outRaw = "";
+function setOutput(text, final = false) {
+  if (task === "handover") {
+    $("ho-output").value = text;
+    return;
+  }
+  outRaw = text;
+  // 작성 결과는 완료 후 한글 저장본 모양으로 보여준다 (생성 중에는 글자 그대로)
+  const asDoc = final && task === "write";
+  $("output").classList.toggle("doc-view", asDoc);
+  if (asDoc) $("output").innerHTML = renderDoc(text);
+  else $("output").textContent = text;
+}
+
+$("btn-run").addEventListener("click", async () => {
+  if (busy) return;
+  let input;
+  let files;
+  if (task === "handover") {
+    if (hoFiles.some((f) => f.status === "wait" || f.status === "reading")) {
+      setStatus("자료를 읽는 중입니다. 목록이 모두 준비된 뒤 다시 눌러 주세요.", true);
+      return;
+    }
+    files = handoverPayload();
+    if (!files.length) {
+      setStatus("인수인계 자료(폴더나 파일)를 불러와 주세요.", true);
+      return;
+    }
+    input = $("ho-note").value.trim();   // 전임자 메모는 선택
+  } else {
+    input = (task === "write" ? $("write-input").value : reviewSource()).trim();
+    if (!input) {
+      setStatus(task === "write"
+        ? "내용 요점을 입력해 주세요."
+        : "파일을 불러와 주세요.", true);
+      return;
+    }
+  }
+
+  const org = orgPayload();
+  if (!org) {
+    setStatus("기관을 먼저 선택해 주세요.", true);
+    openOrgModal();
+    return;
+  }
+
+  // 사용 제한: 작성 5회 / 검토·요약 합산 5회 / 인수인계 5회 (브라우저 기준)
+  if (remaining(limitKeyFor(task)) <= 0) {
+    const label = task === "write" ? "작성" : task === "handover" ? "인수인계" : "검토·요약";
+    setStatus(`오늘 ${label} 가능 횟수(${DAILY_LIMIT}회)를 모두 사용했습니다. 내일 다시 이용해 주세요.`, true);
+    return;
+  }
+
+  // 작성만 유형을 고른다. 검토·요약은 AI 가 유형을 판정한다(팝업 없음).
+  const docType = task === "write" ? currentDocType() : "";
+
+  setOutput("");
+  if (task === "handover") {
+    setHandoverView("doc");
+    $("ho-sources").classList.add("hidden");
+    $("btn-ho-cal").classList.add("hidden");
+    hoOrgDocs = [];
+  }
+  setBusy(true);
+  setStatus(task === "write" ? "생성 중..."
+    : task === "summary" ? "요약 중..."
+    : task === "handover" ? `인수인계서 준비 중... (자료 ${files.length}건)`
+    : `검토 중... (${docType})`);
+
+  controller = new AbortController();
+  let buf = "";
+
+  try {
+    const r = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task, doc_type: docType, input, org, files }),
+      signal: controller.signal,
+    });
+
+    if (!r.ok) {
+      let detail = `오류 ${r.status}`;
+      try { detail = (await r.json()).detail || detail; } catch {}
+      throw new Error(detail);
+    }
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let carry = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      carry += decoder.decode(value, { stream: true });
+
+      const frames = carry.split("\n\n");
+      carry = frames.pop() ?? "";
+
+      for (const frame of frames) {
+        const line = frame.split("\n").find((l) => l.startsWith("data:"));
+        if (!line) continue;
+        let obj;
+        try { obj = JSON.parse(line.slice(5).trim()); } catch { continue; }
+
+        if (obj.error) throw new Error(obj.error);
+
+        if (obj.stage) {
+          setStatus(obj.stage);   // 인수인계: 기관 보관 문서 찾기 → 작성 단계 안내
+        } else if (obj.fallback) {
+          setStatus("다시 시도하는 중...");
+        } else if (obj.done) {
+          setOutput(obj.text, true);
+          bumpUse(limitKeyFor(task));
+          const parts = [];
+          if (obj.elapsed != null) parts.push(`${obj.elapsed}초`);
+          if (obj.custom_format) parts.push("기관 양식 적용");
+          // 작성: 관련 문서로 고른 것은 이름을 보여 주고, 양식 참고용 최근 문서는 건수만
+          const relNames = Array.isArray(obj.reference_names) ? obj.reference_names : [];
+          if (relNames.length) {
+            parts.push(`관련 문서 ${relNames.length}건 참고: ${relNames.map(baseName).join(", ")}`);
+          } else if (obj.references) {
+            parts.push(`양식 참고 문서 ${obj.references}건 반영`);
+          }
+          if (task === "handover") {
+            hoOrgDocs = Array.isArray(obj.org_docs) ? obj.org_docs : [];
+            parts.push(`자료 ${files.length}건`);
+            if (hoOrgDocs.length) parts.push(`기관 보관 문서 ${hoOrgDocs.length}건 참고`);
+            if (obj.saved_count) parts.push(`자료 ${obj.saved_count}건 보관`);
+          }
+          const base = `완료${parts.length ? " (" + parts.join(", ") + ")" : ""}`;
+          if (obj.save_error) {
+            setStatus(`${base} — 보관 실패: ${obj.save_error}`, true);
+          } else if (task === "handover") {
+            refreshHandoverExtras();
+            setHandoverView("preview");   // 완성본은 한글 파일 모양(출처 표시 없음)으로 먼저 보여준다
+            setStatus(`${base} — 출처를 확인하고, 고칠 내용은 [편집]에서 고친 뒤 한글 파일로 저장하세요.`);
+          } else {
+            setStatus(base);
+          }
+        } else if (obj.token) {
+          buf += obj.token;
+          setOutput(lightStrip(buf));
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name === "AbortError") {
+      setStatus("중지됨.");
+    } else {
+      setStatus("오류: " + err.message, true);
+    }
+  } finally {
+    setBusy(false);
+    controller = null;
+  }
+});
+
+$("btn-stop").addEventListener("click", () => {
+  if (controller) {
+    controller.abort();
+    setStatus("중지 중...");
+  }
+});
+
+// ============================================================
+// 결과 처리
+// ============================================================
+function outputText() {
+  return (task === "handover" ? $("ho-output").value : outRaw).trim();
+}
+
+function fileTitle() {
+  const text = outputText();
+  const m = text.match(/^제\s*목\s+(.+)$/m);
+  // 공문은 "제목" 줄, 보고서·인수인계서는 첫 줄(제목 상자에 들어가는 줄)을 파일명으로 쓴다
+  const first = text.split("\n").find((l) => l.trim())?.trim();
+  const raw = m ? m[1].trim() : first || currentDocType();
+  return raw.replace(/[\\/:*?"<>|]/g, "_").slice(0, 50) || "문서";
+}
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+$("btn-save").addEventListener("click", async () => {
+  const text = task === "handover" ? handoverExportText(outputText()).trim() : outputText();
+  if (!text) return setStatus("저장할 내용이 없습니다.", true);
+
+  const title = fileTitle();
+  $("btn-save").disabled = true;
+  setStatus("한글 파일 만드는 중...");
+  try {
+    const fd = new FormData();
+    fd.append("text", text);
+    fd.append("title", title);
+    // 서식 원본은 보내지 않는다. 서버가 사내 보고서 서식(제목 상자·표)으로 만든다.
+
+    const r = await fetch("/api/hwpx", { method: "POST", body: fd });
+    if (!r.ok) {
+      let detail = `오류 ${r.status}`;
+      try { detail = (await r.json()).detail || detail; } catch {}
+      throw new Error(detail);
+    }
+    download(await r.blob(), title + ".hwpx");
+    setStatus("저장됨: " + title + ".hwpx");
+  } catch (e) {
+    setStatus("저장 실패: " + e.message, true);
+  } finally {
+    $("btn-save").disabled = false;
+  }
+});
+
+// ============================================================
+// 익명 개선요청
+// ============================================================
+$("btn-feedback").addEventListener("click", () => {
+  $("feedback-text").value = "";
+  $("feedback-error").classList.add("hidden");
+  $("feedback-overlay").classList.remove("hidden");
+  $("feedback-text").focus();
+});
+$("btn-feedback-cancel").addEventListener("click", () => {
+  $("feedback-overlay").classList.add("hidden");
+});
+$("feedback-overlay").addEventListener("click", (e) => {
+  if (e.target === $("feedback-overlay")) $("feedback-overlay").classList.add("hidden");
+});
+$("btn-feedback-send").addEventListener("click", async () => {
+  const text = $("feedback-text").value.trim();
+  const err = $("feedback-error");
+  if (!text) {
+    err.textContent = "내용을 입력해 주세요.";
+    err.classList.remove("hidden");
+    return;
+  }
+  $("btn-feedback-send").disabled = true;
+  try {
+    const r = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    let data = {};
+    try { data = await r.json(); } catch {}
+    if (!r.ok) throw new Error(data.detail || `오류 ${r.status}`);
+    $("feedback-overlay").classList.add("hidden");
+    setStatus("개선요청이 접수되었습니다. 감사합니다.");
+  } catch (e) {
+    err.textContent = "전송 실패: " + e.message;
+    err.classList.remove("hidden");
+  } finally {
+    $("btn-feedback-send").disabled = false;
+  }
+});
+
+init();
+</script>
+</body>
+</html>

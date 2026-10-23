@@ -1,0 +1,54 @@
+# 큰 파일 / 가중치
+/models/
+*.onnx
+*.onnx_data
+*.safetensors
+*.bin
+
+# datas/ 는 검토를 마친 문서 보관소다 (core/store.py 가 GitHub API 로 커밋).
+# 작성 시 같은 기관·같은 유형의 과거 문서를 참고하므로 저장소에 남긴다.
+# 사내 문서가 들어가므로 저장소는 반드시 비공개로 유지할 것.
+
+# API 키 (절대 커밋 금지)
+/desktop/gemini_key.txt
+.env
+.env.local
+
+# Vercel
+.vercel
+
+# 사용하지 않는 옛 자산
+/vendor/
+/SlmServer.exe
+/serve.bat
+/index.html
+/%programdata%/
+
+# 학습 산출물 (체크포인트 등)
+/training/output/
+
+# spaces/ 전체를 메인 리포에서 제외 (별도 HF Space git으로 관리)
+spaces/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# 노트북 출력
+.ipynb_checkpoints/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 공개 저장소: 기관 문서·기관 목록·개선요청·학습 데이터는 올리지 않는다
+/datas/
+/feedback/
+/training/train_data.json
+/.claude/

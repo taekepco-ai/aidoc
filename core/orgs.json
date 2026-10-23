@@ -1,0 +1,11 @@
+[
+  {
+    "id": "sample",
+    "name": "예시기관",
+    "short": "예시",
+    "alias": "SAMPLE",
+    "self_ref": "우리 기관",
+    "departments_letter": ["기획부", "경영지원부"],
+    "departments_report": ["기획부", "경영지원부"]
+  }
+]
